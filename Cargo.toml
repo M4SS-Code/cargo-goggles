@@ -1,0 +1,20 @@
+[package]
+name = "cargo-goggles"
+version = "0.0.1"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Verify that registry crates in your Cargo.lock are reproducible from the git repository"
+repository = "https://github.com/M4SS-Code/cargo-goggles"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+cargo-lock = "9"
+cargo_toml = "0.19"
+tar = "0.4"
+flate2 = "1"
+sha2 = "0.10"
+url = "2"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
