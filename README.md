@@ -21,7 +21,6 @@ cargo goggles
 
 ## Roadmap
 
-* Setup CI
 * Add badges
 * Cleanup most of the code
 * Make it into a proper library and CLI
