@@ -267,6 +267,7 @@ fn main() -> Result<()> {
                 .arg("clone")
                 .arg(repository.to_string())
                 .arg(&repo_dir)
+                .env("GIT_TERMINAL_PROMPT", "0")
                 .output()?;
             if !out.status.success() {
                 println!("Couldn't clone {} repo status={}", repository, out.status);
@@ -384,6 +385,7 @@ fn main() -> Result<()> {
         let out = Command::new("git")
             .arg("submodule")
             .arg("init")
+            .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(&repo_dir)
             .output()
             .context("init submodules")?;
@@ -398,6 +400,7 @@ fn main() -> Result<()> {
         let out = Command::new("git")
             .arg("submodule")
             .arg("sync")
+            .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(&repo_dir)
             .output()
             .context("sync submodules")?;
@@ -412,6 +415,7 @@ fn main() -> Result<()> {
         let out = Command::new("git")
             .arg("submodule")
             .arg("update")
+            .env("GIT_TERMINAL_PROMPT", "0")
             .current_dir(&repo_dir)
             .output()
             .context("update submodules")?;
