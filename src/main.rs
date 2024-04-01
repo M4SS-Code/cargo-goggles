@@ -101,7 +101,7 @@ fn main() -> Result<()> {
         if !crate_dir.try_exists()? {
             fs::create_dir(&crate_dir)?;
         }
-        let crate_path = crate_dir.join(format!("{}.tar.gz", package.version.to_string()));
+        let crate_path = crate_dir.join(format!("{}.tar.gz", package.version));
         if !crate_path.try_exists()? {
             println!("Downloading {} v{}", package.name, package.version);
 
@@ -159,8 +159,7 @@ fn main() -> Result<()> {
         // Decompress the crate `.tar.gz` into a `.tar`
         //
 
-        let decompressed_crate_path =
-            crate_dir.join(format!("{}.tar", package.version.to_string()));
+        let decompressed_crate_path = crate_dir.join(format!("{}.tar", package.version));
         if !decompressed_crate_path.try_exists()? {
             println!("Decompressing {} v{}", package.name, package.version);
 
@@ -243,7 +242,7 @@ fn main() -> Result<()> {
             .to_string();
         let repository = if host == "github.com" || host.starts_with("gitlab.") {
             let mut repository = repository;
-            let mut path = repository.path().strip_prefix("/").unwrap().split('/');
+            let mut path = repository.path().strip_prefix('/').unwrap().split('/');
             repository.set_path(&format!(
                 "/{}/{}.git",
                 path.next().context("repository is missing user/org")?,
