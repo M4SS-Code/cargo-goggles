@@ -272,7 +272,10 @@ fn main() -> Result<()> {
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .output()?;
             if !out.status.success() {
-                println!("Couldn't clone {} repo status={}", repository, out.status);
+                println!(
+                    "Couldn't clone {} repo for package {} v{} status={}",
+                    repository, package.name, package.version, out.status
+                );
                 continue;
             }
         }
@@ -378,8 +381,8 @@ fn main() -> Result<()> {
             .context("checkout the commit")?;
         if !out.status.success() {
             println!(
-                "Couldn't checkout the commit in {} repo status={}",
-                repository, out.status
+                "Couldn't checkout the commit in {} repo for package {} v{} status={}",
+                repository, package.name, package.version, out.status
             );
             continue;
         }
@@ -393,8 +396,8 @@ fn main() -> Result<()> {
             .context("init submodules")?;
         if !out.status.success() {
             println!(
-                "Couldn't init submodules in {} repo status={}",
-                repository, out.status
+                "Couldn't init submodules in {} repo for package {} v{} status={}",
+                repository, package.name, package.version, out.status
             );
             continue;
         }
@@ -408,8 +411,8 @@ fn main() -> Result<()> {
             .context("sync submodules")?;
         if !out.status.success() {
             println!(
-                "Couldn't sync submodules in {} repo status={}",
-                repository, out.status
+                "Couldn't sync submodules in {} repo for package {} v{} status={}",
+                repository, package.name, package.version, out.status
             );
             continue;
         }
@@ -423,8 +426,8 @@ fn main() -> Result<()> {
             .context("update submodules")?;
         if !out.status.success() {
             println!(
-                "Couldn't update submodules in {} repo status={}",
-                repository, out.status
+                "Couldn't update submodules in {} repo for package {} v{} status={}",
+                repository, package.name, package.version, out.status
             );
             continue;
         }
