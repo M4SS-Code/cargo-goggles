@@ -265,6 +265,8 @@ fn main() -> Result<()> {
             println!("Cloning {}", repository);
             let out = Command::new("git")
                 .arg("clone")
+                .arg("--filter=blob:none")
+                .arg("--")
                 .arg(repository.to_string())
                 .arg(&repo_dir)
                 .env("GIT_TERMINAL_PROMPT", "0")
