@@ -308,9 +308,13 @@ fn main() -> Result<()> {
             // With package name prefix
             format!("{}-v{}", package.name, clean_version),
             format!("{}-{}", package.name, clean_version),
+            format!("{}_v{}", package.name, clean_version),
+            format!("{}_{}", package.name, clean_version),
             format!("{}/v{}", package.name, clean_version),
             format!("{}v/{}", package.name, clean_version),
             format!("{}/{}", package.name, clean_version),
+            format!("{}@v{}", package.name, clean_version),
+            format!("{}@{}", package.name, clean_version),
             // Just the version
             format!("v{clean_version}"),
             clean_version.to_string(),
