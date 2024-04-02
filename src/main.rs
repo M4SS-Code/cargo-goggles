@@ -424,7 +424,7 @@ fn main() -> Result<()> {
         }
 
         //
-        // Soft publish the package
+        // Create local package
         //
 
         let package_path = repo_dir
@@ -433,24 +433,20 @@ fn main() -> Result<()> {
             .join(format!("{}-{}.crate", package.name, package.version));
 
         if !package_path.try_exists()? {
-            println!(
-                "Soft publishing release {} v{}",
-                package.name, package.version
-            );
+            println!("Packaging release {} v{}", package.name, package.version);
 
             let out = Command::new("cargo")
-                .arg("publish")
-                .arg("--dry-run")
+                .arg("package")
                 .arg("--no-verify")
                 .arg("--package")
                 .arg(package.name.as_str())
                 .current_dir(&repo_dir)
                 .env("RUSTUP_TOOLCHAIN", &default_toolchain)
                 .output()
-                .context("publish the package")?;
+                .context("cargo package")?;
             if !out.status.success() {
                 println!(
-                    "Couldn't publish the package in {} repo status={}",
+                    "Couldn't assemble the package in {} repo status={}",
                     repository, out.status
                 );
                 continue;
