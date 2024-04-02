@@ -156,34 +156,14 @@ fn main() -> Result<()> {
         }
 
         //
-        // Decompress the crate `.tar.gz` into a `.tar`
-        //
-
-        let decompressed_crate_path = crate_dir.join(format!("{}.tar", package.version));
-        if !decompressed_crate_path.try_exists()? {
-            println!("Decompressing {} v{}", package.name, package.version);
-
-            let mut file_decompressed = GzDecoder::new(File::open(&crate_path)?);
-
-            let mut tmp_decompressed_crate_path = decompressed_crate_path.clone();
-            tmp_decompressed_crate_path.as_mut_os_string().push(".tmp");
-            let mut decompressed_crate_file = File::create(&tmp_decompressed_crate_path)?;
-            io::copy(&mut file_decompressed, &mut decompressed_crate_file)?;
-            decompressed_crate_file.flush()?;
-            drop(decompressed_crate_file);
-
-            fs::rename(tmp_decompressed_crate_path, &decompressed_crate_path)?;
-        }
-
-        //
         // Read `.cargo_vcs_info.json` and `Cargo.toml`
         //
 
         let mut cargo_vcs_info = None;
         let mut cargo_toml = None;
 
-        let mut tar = Archive::new(File::open(&decompressed_crate_path)?);
-        for entry in tar.entries_with_seek()? {
+        let mut tar = Archive::new(GzDecoder::new(File::open(&crate_path)?));
+        for entry in tar.entries()? {
             let mut entry = entry?;
             let path = entry
                 .path()?
@@ -475,9 +455,9 @@ fn main() -> Result<()> {
         // Hash file contents
         //
 
-        let mut crates_io_tar = Archive::new(File::open(&decompressed_crate_path)?);
+        let mut crates_io_tar = Archive::new(GzDecoder::new(File::open(&crate_path)?));
         let mut crates_io_hashes = BTreeMap::new();
-        for file in crates_io_tar.entries_with_seek()? {
+        for file in crates_io_tar.entries()? {
             let file = file?;
             let path = file.path()?.into_owned();
             if path.ends_with(".cargo_vcs_info.json") {
