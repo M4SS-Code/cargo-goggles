@@ -3,7 +3,7 @@
 [![Crates.io Version](https://img.shields.io/crates/v/cargo-goggles)](https://crates.io/crates/cargo-goggles)
 ![Crates.io License](https://img.shields.io/crates/l/cargo-goggles)
 [![CI](https://github.com/M4SS-Code/cargo-goggles/workflows/CI/badge.svg)](https://github.com/M4SS-Code/cargo-goggles/actions)
-[![dependency status](https://deps.rs/crate/cargo-goggles/0.0.1/status.svg)](https://deps.rs/crate/cargo-goggles/0.0.1)
+[![dependency status](https://deps.rs/repo/github/M4SS-Code/cargo-goggles/status.svg)](https://deps.rs/repo/github/M4SS-Code/cargo-goggles)
 
 Verify that registry crates in your Cargo.lock are reproducible from the git repository.
 
