@@ -1,6 +1,6 @@
 [package]
 name = "cargo-goggles"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Verify that registry crates in your Cargo.lock are reproducible from the git repository"
