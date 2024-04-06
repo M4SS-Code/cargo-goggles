@@ -1,24 +1,21 @@
 use std::{
-    collections::{BTreeMap, HashSet},
-    env,
-    fs::{self, File},
-    io::{self, BufRead, BufReader, Read, },
-    process::Command,
+    collections::BTreeMap,
+    env, fs,
+    io::{self, BufRead, BufReader, Read},
     str,
 };
 
-use anyhow::{ensure, Context as _, Result};
+use anyhow::{ensure, Context, Result};
 use cargo_lock::{package::SourceKind, Checksum, Lockfile};
 use cargo_toml::Manifest;
-use flate2::read::GzDecoder;
-use semver::BuildMetadata;
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256, Sha512};
-use tar::Archive;
 use url::Url;
 
+use self::git::GitRepository;
 use self::registry::RegistryCrate;
 
+mod git;
 mod registry;
 mod rustup;
 
@@ -181,126 +178,35 @@ fn main() -> Result<()> {
         // Clone repository
         //
 
-        let repository = repository
+        let repository_url = repository
             .get()?
             .parse::<Url>()
             .context("repository isn't a valid url")?;
-        ensure!(
-            matches!(repository.scheme(), "http" | "https"),
-            "Bad repository scheme"
-        );
-        let host = repository
-            .host()
-            .context("repository doesn't have a `host`")?
-            .to_string();
-        let repository = if host == "github.com" || host.starts_with("gitlab.") {
-            let mut repository = repository;
-            let mut path = repository.path().strip_prefix('/').unwrap().split('/');
-            repository.set_path(&format!(
-                "/{}/{}.git",
-                path.next().context("repository is missing user/org")?,
-                path.next()
-                    .context("repository is missing repo name")?
-                    .trim_end_matches(".git")
-            ));
-            repository
-        } else {
-            repository
-        };
-
-        let name = format!(
-            "{}-{}",
-            repository.host().unwrap(),
-            repository.path().replace('/', "-")
-        );
-        let repo_dir = repos_dir.join(&name);
-        if !repo_dir.try_exists()? {
-            println!("Cloning {}", repository);
-            let out = Command::new("git")
-                .arg("clone")
-                .arg("--filter=blob:none")
-                .arg("--")
-                .arg(repository.to_string())
-                .arg(&repo_dir)
-                .env("GIT_TERMINAL_PROMPT", "0")
-                .output()?;
-            if !out.status.success() {
+        let mut git_repository = match GitRepository::obtain(&repos_dir, repository_url.clone()) {
+            Ok(git_repository) => git_repository,
+            Err(err) => {
                 println!(
-                    "Couldn't clone {} repo for package {} v{} status={}",
-                    repository, package.name, package.version, out.status
+                    "Couldn't obtain git repository for {} v{} err={:?} url={}",
+                    package.name, package.version, err, repository_url
                 );
                 continue;
             }
-        }
+        };
 
         //
         // Get git tags
         //
 
-        let tags = Command::new("git")
-            .arg("tag")
-            .current_dir(&repo_dir)
-            .output()?;
-        ensure!(
-            tags.status.success(),
-            "Couldn't list git tags {} repo status={}",
-            repository,
-            tags.status
-        );
-        let tags = str::from_utf8(&tags.stdout)
-            .context("couldn't parse git tags")?
-            .lines()
-            .map(ToOwned::to_owned)
-            .collect::<HashSet<_>>();
+        let tags = git_repository.tags().context("obtain git tags")?;
 
         //
         // Find a matching tag
         //
 
-        let mut clean_version = package.version.clone();
-        clean_version.build = BuildMetadata::EMPTY;
-
-        let possible_tags = [
-            // With package name prefix
-            format!("{}-v{}", package.name, clean_version),
-            format!("{}-{}", package.name, clean_version),
-            format!("{}_v{}", package.name, clean_version),
-            format!("{}_{}", package.name, clean_version),
-            format!("{}/v{}", package.name, clean_version),
-            format!("{}v/{}", package.name, clean_version),
-            format!("{}/{}", package.name, clean_version),
-            format!("{}@v{}", package.name, clean_version),
-            format!("{}@{}", package.name, clean_version),
-            // Just the version
-            format!("v{clean_version}"),
-            clean_version.to_string(),
-            format!("v/{clean_version}"),
-        ];
-        let commit = match possible_tags
-            .iter()
-            .find(|&possible_tag| tags.contains(possible_tag))
+        let commit = match tags.find_tag_for_version(package.name.as_str(), package.version.clone())
         {
             Some(tag) => {
-                let out = Command::new("git")
-                    .arg("rev-list")
-                    .arg("-n")
-                    .arg("1")
-                    .arg(tag)
-                    .current_dir(&repo_dir)
-                    .output()
-                    .context("find out commit behind tag")?;
-                ensure!(
-                    out.status.success(),
-                    "Couldn't determine commit behind tag {} repo status={}",
-                    repository,
-                    out.status
-                );
-                let commit = str::from_utf8(&out.stdout)
-                    .context("git tag isn't utf-8")?
-                    .lines()
-                    .next()
-                    .context("output is empty")?
-                    .to_owned();
+                let commit = tag.commit()?;
 
                 if let Some(cargo_vcs_info) = &cargo_vcs_info {
                     if cargo_vcs_info.git.sha1 != commit {
@@ -330,99 +236,35 @@ fn main() -> Result<()> {
         // Checkout the commit in the repo
         //
 
-        let out = Command::new("git")
-            .arg("checkout")
-            .arg(commit)
-            .current_dir(&repo_dir)
-            .output()
-            .context("checkout the commit")?;
-        if !out.status.success() {
-            println!(
-                "Couldn't checkout the commit in {} repo for package {} v{} status={}",
-                repository, package.name, package.version, out.status
-            );
-            continue;
-        }
-
-        let out = Command::new("git")
-            .arg("submodule")
-            .arg("init")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .current_dir(&repo_dir)
-            .output()
-            .context("init submodules")?;
-        if !out.status.success() {
-            println!(
-                "Couldn't init submodules in {} repo for package {} v{} status={}",
-                repository, package.name, package.version, out.status
-            );
-            continue;
-        }
-
-        let out = Command::new("git")
-            .arg("submodule")
-            .arg("sync")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .current_dir(&repo_dir)
-            .output()
-            .context("sync submodules")?;
-        if !out.status.success() {
-            println!(
-                "Couldn't sync submodules in {} repo for package {} v{} status={}",
-                repository, package.name, package.version, out.status
-            );
-            continue;
-        }
-
-        let out = Command::new("git")
-            .arg("submodule")
-            .arg("update")
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .current_dir(&repo_dir)
-            .output()
-            .context("update submodules")?;
-        if !out.status.success() {
-            println!(
-                "Couldn't update submodules in {} repo for package {} v{} status={}",
-                repository, package.name, package.version, out.status
-            );
-            continue;
-        }
+        let git_repository_checkout = match git_repository.checkout(&commit) {
+            Ok(git_repository_checkout) => git_repository_checkout,
+            Err(err) => {
+                println!(
+                    "Couldn't checkout commit {} for package {} v{} err={:?}",
+                    commit, package.name, package.version, err
+                );
+                continue;
+            }
+        };
 
         //
         // Create local package
         //
 
-        let package_path = repo_dir
-            .join("target")
-            .join("package")
-            .join(format!("{}-{}.crate", package.name, package.version));
-
-        if !package_path.try_exists()? {
-            println!("Packaging release {} v{}", package.name, package.version);
-
-            let out = Command::new("cargo")
-                .arg("package")
-                .arg("--no-verify")
-                .arg("--package")
-                .arg(package.name.as_str())
-                .current_dir(&repo_dir)
-                .env("RUSTUP_TOOLCHAIN", &default_toolchain)
-                .output()
-                .context("cargo package")?;
-            if !out.status.success() {
+        let mut our_tar_gz = match git_repository_checkout.crate_package(
+            &default_toolchain,
+            package.name.as_str(),
+            &package.version,
+        ) {
+            Ok(our_tar_gz) => our_tar_gz,
+            Err(err) => {
                 println!(
-                    "Couldn't assemble the package in {} repo status={}",
-                    repository, out.status
+                    "Couldn't package {} v{} err={:?}",
+                    package.name, package.version, err
                 );
                 continue;
             }
-
-            if !package_path.try_exists()? {
-                println!("Package still somehow doesn't exist {}", package.name);
-                continue;
-            }
-        }
+        };
 
         //
         // Hash file contents
@@ -448,7 +290,6 @@ fn main() -> Result<()> {
             crates_io_hashes.insert(path, sha512.finalize());
         }
 
-        let mut our_tar_gz = Archive::new(GzDecoder::new(File::open(&package_path)?));
         let mut our_hashes = BTreeMap::new();
         for file in our_tar_gz.entries()? {
             let file = file?;
