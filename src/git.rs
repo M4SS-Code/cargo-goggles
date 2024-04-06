@@ -1,18 +1,16 @@
 use std::{
     cmp::Ordering,
     collections::BTreeSet,
-    fs::File,
-    io::Read,
     path::{Path, PathBuf},
     process::Command,
     str,
 };
 
 use anyhow::{ensure, Context as _, Result};
-use flate2::read::GzDecoder;
 use semver::Version;
-use tar::Archive;
 use url::Url;
+
+use crate::package::Package;
 
 #[derive(Debug)]
 pub struct GitRepository {
@@ -122,7 +120,7 @@ impl<'a> GitRepositoryCheckout<'a> {
         default_toolchain: &str,
         name: &str,
         version: &Version,
-    ) -> Result<Archive<impl Read>> {
+    ) -> Result<Package> {
         let package_path = self
             .repository
             .repo_dir
@@ -147,10 +145,7 @@ impl<'a> GitRepositoryCheckout<'a> {
             );
         }
 
-        File::open(package_path)
-            .map(GzDecoder::new)
-            .map(Archive::new)
-            .map_err(Into::into)
+        Ok(Package::new(package_path))
     }
 }
 

@@ -1,7 +1,6 @@
 use std::{
-    collections::BTreeMap,
     env, fs,
-    io::{self as std_io, BufReader, Read},
+    io::{self as std_io, Read},
     str,
 };
 
@@ -9,15 +8,17 @@ use anyhow::{ensure, Context, Result};
 use cargo_lock::{package::SourceKind, Checksum, Lockfile};
 use cargo_toml::Manifest;
 use serde::Deserialize;
-use sha2::{Digest as _, Sha256, Sha512};
+use sha2::{Digest as _, Sha256};
 use url::Url;
 
+use crate::package::{PackageComparison, PackageContents};
+
 use self::git::GitRepository;
-use self::io::AsciiWhitespaceSkippingReader;
 use self::registry::RegistryCrate;
 
 mod git;
 mod io;
+mod package;
 mod registry;
 mod rustup;
 
@@ -105,6 +106,7 @@ fn main() -> Result<()> {
                 continue;
             }
         };
+        let registry_crate_package = registry_crate.package();
 
         //
         // Verify the package checksum
@@ -113,7 +115,7 @@ fn main() -> Result<()> {
         match package.checksum {
             Some(Checksum::Sha256(expected_sha256_hash)) => {
                 let mut sha256 = Sha256::new();
-                std_io::copy(&mut registry_crate.raw_crate_file()?, &mut sha256)?;
+                std_io::copy(&mut registry_crate_package.raw_reader()?, &mut sha256)?;
                 let sha256 = sha256.finalize();
 
                 ensure!(
@@ -134,7 +136,7 @@ fn main() -> Result<()> {
         let mut cargo_vcs_info = None;
         let mut cargo_toml = None;
 
-        let mut tar = registry_crate.crate_contents()?;
+        let mut tar = registry_crate_package.archive_reader()?;
         for entry in tar.entries()? {
             let mut entry = entry?;
             let path = entry
@@ -253,12 +255,12 @@ fn main() -> Result<()> {
         // Create local package
         //
 
-        let mut our_tar_gz = match git_repository_checkout.crate_package(
+        let repository_package = match git_repository_checkout.crate_package(
             &default_toolchain,
             package.name.as_str(),
             &package.version,
         ) {
-            Ok(our_tar_gz) => our_tar_gz,
+            Ok(repository_package) => repository_package,
             Err(err) => {
                 println!(
                     "Couldn't package {} v{} err={:?}",
@@ -272,76 +274,43 @@ fn main() -> Result<()> {
         // Hash file contents
         //
 
-        let mut crates_io_tar = registry_crate.crate_contents()?;
-        let mut crates_io_hashes = BTreeMap::new();
-        for file in crates_io_tar.entries()? {
-            let file = file?;
-            let path = file.path()?.into_owned();
-            if path.ends_with(".cargo_vcs_info.json") {
-                continue;
-            }
-            // TODO: remove this
-            if path.ends_with("Cargo.toml") || path.ends_with("Cargo.toml.orig") {
-                continue;
-            }
-
-            let mut reader = AsciiWhitespaceSkippingReader::new(BufReader::new(file));
-
-            let mut sha512 = Sha512::new();
-            std_io::copy(&mut reader, &mut sha512)?;
-            crates_io_hashes.insert(path, sha512.finalize());
-        }
-
-        let mut our_hashes = BTreeMap::new();
-        for file in our_tar_gz.entries()? {
-            let file = file?;
-            let path = file.path()?.into_owned();
-            if path.ends_with(".cargo_vcs_info.json") {
-                continue;
-            }
-            // TODO: remove this
-            if path.ends_with("Cargo.toml") || path.ends_with("Cargo.toml.orig") {
-                continue;
-            }
-
-            let mut reader = AsciiWhitespaceSkippingReader::new(BufReader::new(file));
-
-            let mut sha512 = Sha512::new();
-            std_io::copy(&mut reader, &mut sha512)?;
-            our_hashes.insert(path, sha512.finalize());
-        }
+        let repository_package_contents = repository_package
+            .contents()
+            .context("calculate repository package contents")?;
+        let registry_package_contents = registry_crate_package
+            .contents()
+            .context("calculate registry crate package contents")?;
 
         //
         // Compare hashes
         //
 
-        for (our_filename, our_sha512_hash) in &our_hashes {
-            match crates_io_hashes.get(our_filename) {
-                Some(crates_io_sha512) if our_sha512_hash == crates_io_sha512 => {}
-                Some(_) => {
+        let comparison =
+            PackageContents::compare(&repository_package_contents, &registry_package_contents);
+        for outcome in comparison {
+            match outcome {
+                PackageComparison::Equal(_) => continue,
+                PackageComparison::Different(path) => {
                     println!(
                         "Package {} has mismatching file hashes for {}",
                         package.name,
-                        our_filename.display()
+                        path.display()
                     );
                 }
-                None => {
+                PackageComparison::OnlyLeft(path) => {
                     println!(
                         "Package {} has file {} in our release but not in crates.io tarball",
                         package.name,
-                        our_filename.display()
+                        path.display()
                     );
                 }
-            }
-        }
-
-        for crates_io_filename in crates_io_hashes.keys() {
-            if !our_hashes.contains_key(crates_io_filename) {
-                println!(
-                    "Package {} has file {} in crates.io release but not ours",
-                    package.name,
-                    crates_io_filename.display()
-                );
+                PackageComparison::OnlyRight(path) => {
+                    println!(
+                        "Package {} has file {} in crates.io release but not ours",
+                        package.name,
+                        path.display()
+                    );
+                }
             }
         }
     }
