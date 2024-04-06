@@ -1,13 +1,13 @@
 use std::{
     fs::{self, File},
-    io::{self, Read, Write as _},
+    io::{self, Write as _},
     path::{Path, PathBuf},
 };
 
 use anyhow::Result;
-use flate2::read::GzDecoder;
 use semver::Version;
-use tar::Archive;
+
+use crate::package::Package;
 
 pub struct RegistryCrate {
     crate_file: PathBuf,
@@ -50,15 +50,7 @@ impl RegistryCrate {
         })
     }
 
-    pub fn raw_crate_file(&self) -> io::Result<impl Read> {
-        File::open(&self.crate_file)
-    }
-
-    pub fn decompressed_crate_file(&self) -> io::Result<impl Read> {
-        self.raw_crate_file().map(GzDecoder::new)
-    }
-
-    pub fn crate_contents(&self) -> io::Result<Archive<impl Read>> {
-        self.decompressed_crate_file().map(Archive::new)
+    pub fn package(&self) -> Package {
+        Package::new(self.crate_file.clone())
     }
 }
