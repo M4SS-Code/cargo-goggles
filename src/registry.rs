@@ -9,6 +9,7 @@ use semver::Version;
 
 use crate::package::Package;
 
+#[derive(Debug)]
 pub struct RegistryCrate {
     crate_file: PathBuf,
 }

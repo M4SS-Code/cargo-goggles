@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     collections::BTreeSet,
+    fmt::{self, Display},
     path::{Path, PathBuf},
     process::Command,
     str,
@@ -11,6 +12,9 @@ use semver::Version;
 use url::Url;
 
 use crate::package::Package;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GitUrl(Url);
 
 #[derive(Debug)]
 pub struct GitRepository {
@@ -32,21 +36,15 @@ pub struct GitTag<'a> {
 }
 
 impl GitRepository {
-    pub fn obtain(dir: &Path, url: Url) -> Result<Self> {
-        let normalized_url = normalize_url(url)?;
-
-        let name = format!(
-            "{}-{}",
-            normalized_url.host().unwrap(),
-            normalized_url.path().replace('/', "-")
-        );
+    pub fn obtain(dir: &Path, GitUrl(url): GitUrl) -> Result<Self> {
+        let name = format!("{}-{}", url.host().unwrap(), url.path().replace('/', "-"));
         let repo_dir = dir.join(name);
         if !repo_dir.try_exists()? {
             let out = Command::new("git")
                 .arg("clone")
                 .arg("--filter=blob:none")
                 .arg("--")
-                .arg(normalized_url.to_string())
+                .arg(url.to_string())
                 .arg(&repo_dir)
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .output()?;
@@ -228,28 +226,40 @@ impl<'a> Ord for GitTag<'a> {
     }
 }
 
-fn normalize_url(url: Url) -> Result<Url> {
-    ensure!(
-        matches!(url.scheme(), "http" | "https"),
-        "Bad repository scheme"
-    );
-    let host = url
-        .host()
-        .context("repository doesn't have a `host`")?
-        .to_string();
+impl TryFrom<Url> for GitUrl {
+    type Error = anyhow::Error;
 
-    Ok(if host == "github.com" || host.starts_with("gitlab.") {
-        let mut url = url;
-        let mut path = url.path().strip_prefix('/').unwrap().split('/');
-        url.set_path(&format!(
-            "/{}/{}.git",
-            path.next().context("repository is missing user/org")?,
-            path.next()
-                .context("repository is missing repo name")?
-                .trim_end_matches(".git")
-        ));
-        url
-    } else {
-        url
-    })
+    fn try_from(url: Url) -> Result<Self, Self::Error> {
+        ensure!(
+            matches!(url.scheme(), "http" | "https"),
+            "Bad repository scheme"
+        );
+        let host = url
+            .host()
+            .context("repository doesn't have a `host`")?
+            .to_string();
+
+        Ok(Self(
+            if host == "github.com" || host.starts_with("gitlab.") {
+                let mut url = url;
+                let mut path = url.path().strip_prefix('/').unwrap().split('/');
+                url.set_path(&format!(
+                    "/{}/{}.git",
+                    path.next().context("repository is missing user/org")?,
+                    path.next()
+                        .context("repository is missing repo name")?
+                        .trim_end_matches(".git")
+                ));
+                url
+            } else {
+                url
+            },
+        ))
+    }
+}
+
+impl Display for GitUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
 }
