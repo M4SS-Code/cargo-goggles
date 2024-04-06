@@ -3,6 +3,8 @@ name = "cargo-goggles"
 version = "0.0.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+categories = ["development-tools::cargo-plugins"]
+keywords = ["git-repository", "cargo-lock", "reproducible", "registry", "verify"]
 description = "Verify that registry crates in your Cargo.lock are reproducible from the git repository"
 repository = "https://github.com/M4SS-Code/cargo-goggles"
 
