@@ -17,6 +17,8 @@ use sha2::{Digest as _, Sha256, Sha512};
 use tar::Archive;
 use url::Url;
 
+mod rustup;
+
 const USER_AGENT: &str = concat!(
     env!("CARGO_PKG_NAME"),
     "/",
@@ -42,18 +44,7 @@ fn main() -> Result<()> {
         .user_agent(USER_AGENT)
         .build()?;
 
-    let default_toolchain = Command::new("rustup")
-        .arg("default")
-        .output()
-        .ok()
-        .filter(|out| out.status.success())
-        .and_then(|out| String::from_utf8(out.stdout).ok())
-        .and_then(|stdout| {
-            stdout
-                .split_once(' ')
-                .map(|(toolchain, _)| toolchain.to_owned())
-        })
-        .unwrap_or_else(|| "stable".to_owned());
+    let default_toolchain = self::rustup::default_toolchain();
 
     let crates_io_index = "https://github.com/rust-lang/crates.io-index".parse::<Url>()?;
 
