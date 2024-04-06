@@ -2,7 +2,7 @@ use std::{
     collections::{BTreeMap, HashSet},
     env,
     fs::{self, File},
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{self, BufRead, BufReader, Read, },
     process::Command,
     str,
 };
@@ -17,6 +17,9 @@ use sha2::{Digest as _, Sha256, Sha512};
 use tar::Archive;
 use url::Url;
 
+use self::registry::RegistryCrate;
+
+mod registry;
 mod rustup;
 
 const USER_AGENT: &str = concat!(
@@ -88,40 +91,21 @@ fn main() -> Result<()> {
         // Download the package
         //
 
-        let crate_dir = crates_dir.join(package.name.as_str());
-        if !crate_dir.try_exists()? {
-            fs::create_dir(&crate_dir)?;
-        }
-        let crate_path = crate_dir.join(format!("{}.tar.gz", package.version));
-        if !crate_path.try_exists()? {
-            println!("Downloading {} v{}", package.name, package.version);
-
-            let mut resp = client
-                .get(format!(
-                    "https://static.crates.io/crates/{}/{}-{}.crate",
-                    package.name, package.name, package.version
-                ))
-                .send()?;
-            if !resp.status().is_success() {
+        let registry_crate = match RegistryCrate::obtain(
+            &client,
+            &crates_dir,
+            package.name.as_str(),
+            &package.version,
+        ) {
+            Ok(registry_crate) => registry_crate,
+            Err(err) => {
                 println!(
-                    "Couldn't download {} v{}, status: {}",
-                    package.name,
-                    package.version,
-                    resp.status()
+                    "Couldn't obtain package {} v{} err={:?}",
+                    package.name, package.version, err
                 );
                 continue;
             }
-
-            let mut tmp_crate_path = crate_path.clone();
-            tmp_crate_path.as_mut_os_string().push(".tmp");
-
-            let mut tmp_crate_file = File::create(&tmp_crate_path)?;
-            io::copy(&mut resp, &mut tmp_crate_file)?;
-            tmp_crate_file.flush()?;
-            drop(tmp_crate_file);
-
-            fs::rename(tmp_crate_path, &crate_path)?;
-        }
+        };
 
         //
         // Verify the package checksum
@@ -130,9 +114,7 @@ fn main() -> Result<()> {
         match package.checksum {
             Some(Checksum::Sha256(expected_sha256_hash)) => {
                 let mut sha256 = Sha256::new();
-                let mut file = File::open(&crate_path)?;
-                io::copy(&mut file, &mut sha256)?;
-                drop(file);
+                io::copy(&mut registry_crate.raw_crate_file()?, &mut sha256)?;
                 let sha256 = sha256.finalize();
 
                 ensure!(
@@ -153,7 +135,7 @@ fn main() -> Result<()> {
         let mut cargo_vcs_info = None;
         let mut cargo_toml = None;
 
-        let mut tar = Archive::new(GzDecoder::new(File::open(&crate_path)?));
+        let mut tar = registry_crate.crate_contents()?;
         for entry in tar.entries()? {
             let mut entry = entry?;
             let path = entry
@@ -446,7 +428,7 @@ fn main() -> Result<()> {
         // Hash file contents
         //
 
-        let mut crates_io_tar = Archive::new(GzDecoder::new(File::open(&crate_path)?));
+        let mut crates_io_tar = registry_crate.crate_contents()?;
         let mut crates_io_hashes = BTreeMap::new();
         for file in crates_io_tar.entries()? {
             let file = file?;
