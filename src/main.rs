@@ -224,7 +224,11 @@ fn main() -> Result<()> {
                 commit
             }
             None => {
-                println!("Found NO tag match with package {}", package.name);
+                if tags.is_empty() {
+                    println!("Package {} has no tags in git repository", package.name);
+                } else {
+                    println!("Found NO tag match with package {}", package.name);
+                }
 
                 match &cargo_vcs_info {
                     Some(cargo_vcs_info) => cargo_vcs_info.git.sha1.clone(),

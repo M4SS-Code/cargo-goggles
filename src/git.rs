@@ -174,6 +174,15 @@ impl<'a> GitTags<'a> {
             .iter()
             .find_map(|possible_tag| self.0.iter().find(|&tag| tag.tag == **possible_tag))
     }
+
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl<'a> GitTag<'a> {
