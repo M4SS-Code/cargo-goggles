@@ -16,7 +16,7 @@ use crate::package::Package;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GitUrl(Url);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GitRepository {
     repo_dir: PathBuf,
 }
