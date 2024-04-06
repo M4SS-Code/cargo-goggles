@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     env, fs,
     io::{self as std_io, Read},
     path::Path,
@@ -9,6 +10,7 @@ use anyhow::{ensure, Context, Result};
 use cargo_lock::{package::SourceKind, Checksum, Lockfile};
 use cargo_toml::Manifest;
 use git::GitUrl;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 use url::Url;
@@ -76,45 +78,62 @@ fn main() -> Result<()> {
 
     let lock = Lockfile::load(lock).context("decode Cargo.lock")?;
 
-    for lock_info in lock.packages {
-        let name = lock_info.name.clone();
-        let version = lock_info.version.clone();
+    let resolved_packages = lock
+        .packages
+        .into_par_iter()
+        .filter_map(|lock_info| {
+            let name = lock_info.name.clone();
+            let version = lock_info.version.clone();
 
-        let resolved_package = match resolve_package(&http_client, &crates_dir, lock_info) {
-            Ok(resolved_package) => resolved_package,
-            Err(err) => {
-                println!("Couldn't resolve package {name} v{version} err={err:?}");
-                continue;
+            match resolve_package(&http_client, &crates_dir, lock_info) {
+                Ok(resolved_package) => Some(resolved_package),
+                Err(err) => {
+                    println!("Couldn't resolve package {name} v{version} err={err:?}");
+                    None
+                }
             }
-        };
+        })
+        .collect::<Vec<_>>();
 
-        let mut git_repository =
-            match GitRepository::obtain(&repos_dir, resolved_package.repository_url.clone()) {
+    let mut grouped_resolved_packages = BTreeMap::<_, Vec<_>>::new();
+    for resolved_package in resolved_packages {
+        grouped_resolved_packages
+            .entry(resolved_package.repository_url.clone())
+            .or_default()
+            .push(resolved_package);
+    }
+
+    grouped_resolved_packages
+        .into_par_iter()
+        .for_each(|(repository_url, resolved_packages)| {
+            let mut git_repository = match GitRepository::obtain(&repos_dir, repository_url) {
                 Ok(git_repository) => git_repository,
                 Err(err) => {
                     println!(
                         "Couldn't obtain git repository for {} v{} err={:?} url={}",
+                        resolved_packages[0].lock_info.name,
+                        resolved_packages[0].lock_info.version,
+                        err,
+                        resolved_packages[0].repository_url
+                    );
+                    return;
+                }
+            };
+
+            for resolved_package in resolved_packages {
+                if let Err(err) =
+                    analyze_package(&default_toolchain, &resolved_package, &mut git_repository)
+                {
+                    println!(
+                        "Couldn't analyze package for {} v{} err={:?} url={}",
                         resolved_package.lock_info.name,
                         resolved_package.lock_info.version,
                         err,
                         resolved_package.repository_url
                     );
-                    continue;
                 }
-            };
-
-        if let Err(err) =
-            analyze_package(&default_toolchain, &resolved_package, &mut git_repository)
-        {
-            println!(
-                "Couldn't analyze package for {} v{} err={:?} url={}",
-                resolved_package.lock_info.name,
-                resolved_package.lock_info.version,
-                err,
-                resolved_package.repository_url
-            );
-        }
-    }
+            }
+        });
 
     Ok(())
 }
