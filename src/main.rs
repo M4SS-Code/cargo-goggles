@@ -51,7 +51,7 @@ fn main() -> Result<()> {
     let crates_io_index = "https://github.com/rust-lang/crates.io-index".parse::<Url>()?;
 
     let current_dir = env::current_dir()?;
-    let temp_dir = env::temp_dir().join("cargo-crates-check");
+    let temp_dir = env::temp_dir().join(env!("CARGO_PKG_NAME"));
     let crates_dir = temp_dir.join("crates");
     let repos_dir = temp_dir.join("repositories");
     fs::create_dir_all(&crates_dir)?;
