@@ -94,14 +94,9 @@ impl PackageContents {
 }
 
 fn is_path_ignored(path: &Path) -> bool {
-    if path.ends_with(".cargo_vcs_info.json") {
-        return true;
-    }
-
-    // TODO: remove this
-    if path.ends_with("Cargo.toml") || path.ends_with("Cargo.toml.orig") {
-        return true;
-    }
-
-    false
+    path.file_name().map_or(false, |name| {
+        [".cargo_vcs_info.json", "Cargo.toml", "Cargo.toml.orig"]
+            .into_iter()
+            .any(|n| n == name)
+    })
 }
