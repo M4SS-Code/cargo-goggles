@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{self, Write as _},
+    io,
     path::{Path, PathBuf},
 };
 
@@ -39,7 +39,7 @@ impl RegistryCrate {
 
             let mut tmp_crate_file = File::create(&tmp_crate_path)?;
             io::copy(&mut resp, &mut tmp_crate_file)?;
-            tmp_crate_file.flush()?;
+            tmp_crate_file.sync_all()?;
             drop(tmp_crate_file);
 
             fs::rename(tmp_crate_path, &crate_path)?;
