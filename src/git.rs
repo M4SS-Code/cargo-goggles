@@ -130,7 +130,8 @@ impl<'a> GitRepositoryCheckout<'a> {
 
         if !package_path.try_exists()? {
             let out = Command::new("cargo")
-                .arg("package")
+                .arg("publish")
+                .arg("--dry-run")
                 .arg("--no-verify")
                 .arg("--package")
                 .arg(name)
