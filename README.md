@@ -37,6 +37,7 @@ cargo goggles
 
 ## See also
 
+- https://lib.rs/dash gives a very deep (auto-generated) analysis of a user's own crates, including whether the sources match the crates.io release.
 - [Rust: Does the published crate match the upstream source? (2021-10-03)](https://codeandbitters.com/published-crate-analysis/) and corresponding [`crates_io_analyzer`](https://github.com/ericseppanen/crates_io_analyzer) tool.
 - <https://github.com/link2xt/cargo-repack>, an archived Python prototype of a similar tool.
 - [Backdooring Rust crates for fun and profit (2021-11-17)](https://kerkour.com/rust-crate-backdoor) suggests protecting against Git repository and crates.io mismatch by vendoring dependencies and inspecting the diff.
