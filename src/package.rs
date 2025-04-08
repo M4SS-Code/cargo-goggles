@@ -94,7 +94,7 @@ impl PackageContents {
 }
 
 fn is_path_ignored(path: &Path) -> bool {
-    path.file_name().map_or(false, |name| {
+    path.file_name().is_some_and(|name| {
         [".cargo_vcs_info.json", "Cargo.toml"]
             .into_iter()
             .any(|n| n == name)
