@@ -112,7 +112,7 @@ impl GitRepository {
     }
 }
 
-impl<'a> GitRepositoryCheckout<'a> {
+impl GitRepositoryCheckout<'_> {
     pub fn crate_package(
         &self,
         default_toolchain: &str,
@@ -184,7 +184,7 @@ impl<'a> GitTags<'a> {
     }
 }
 
-impl<'a> GitTag<'a> {
+impl GitTag<'_> {
     pub fn commit(&self) -> Result<String> {
         let out = Command::new("git")
             .arg("rev-list")
@@ -206,21 +206,21 @@ impl<'a> GitTag<'a> {
     }
 }
 
-impl<'a> PartialEq for GitTag<'a> {
+impl PartialEq for GitTag<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.tag.eq(&other.tag)
     }
 }
 
-impl<'a> Eq for GitTag<'a> {}
+impl Eq for GitTag<'_> {}
 
-impl<'a> PartialOrd for GitTag<'a> {
+impl PartialOrd for GitTag<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> Ord for GitTag<'a> {
+impl Ord for GitTag<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.tag.cmp(&other.tag)
     }
