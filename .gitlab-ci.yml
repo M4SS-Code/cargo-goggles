@@ -1,0 +1,35 @@
+stages:
+  - test
+
+rust:deny:
+  stage: test
+  image: rust:1.86-alpine3.21
+  before_script:
+    - apk add cargo-deny
+  script:
+    - cargo deny check
+
+rust:fmt:
+  stage: test
+  image: rust:1.86-alpine3.21
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt -- --check
+
+rust:clippy:
+  stage: test
+  image: rust:1.86-alpine3.21
+  before_script:
+    - apk add musl-dev
+    - rustup component add clippy
+  script:
+    - cargo clippy --all-features -- -D warnings
+
+rust:test:
+  stage: test
+  image: rust:1.86-alpine3.21
+  before_script:
+    - apk add musl-dev
+  script:
+    - cargo test
