@@ -54,7 +54,7 @@ impl GitRepository {
         Ok(Self { repo_dir })
     }
 
-    pub fn tags(&self) -> Result<GitTags> {
+    pub fn tags(&self) -> Result<GitTags<'_>> {
         let out = Command::new("git")
             .arg("tag")
             .current_dir(&self.repo_dir)
