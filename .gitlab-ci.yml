@@ -21,7 +21,6 @@ rust:clippy:
   stage: test
   image: rust:1.92-alpine3.23
   before_script:
-    - apk add musl-dev
     - rustup component add clippy
   script:
     - cargo clippy --all-features -- -D warnings
@@ -29,7 +28,5 @@ rust:clippy:
 rust:test:
   stage: test
   image: rust:1.92-alpine3.23
-  before_script:
-    - apk add musl-dev
   script:
     - cargo test
