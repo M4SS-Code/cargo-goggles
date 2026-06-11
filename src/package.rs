@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use digest_io::IoWrapper;
 use flate2::read::GzDecoder;
 use sha2::{Digest as _, Sha512};
 use tar::Archive;
@@ -52,9 +53,9 @@ impl Package {
 
             let mut reader = AsciiWhitespaceSkippingReader::new(BufReader::new(file));
 
-            let mut sha512 = Sha512::new();
+            let mut sha512 = IoWrapper(Sha512::new());
             io::copy(&mut reader, &mut sha512)?;
-            hashes.insert(path, sha512.finalize().into());
+            hashes.insert(path, sha512.0.finalize().into());
         }
 
         Ok(PackageContents(hashes))

@@ -179,9 +179,9 @@ fn resolve_package(
 
     match lock_info.checksum {
         Some(Checksum::Sha256(expected_sha256_hash)) => {
-            let mut sha256 = Sha256::new();
+            let mut sha256 = digest_io::IoWrapper(Sha256::new());
             std_io::copy(&mut registry_crate_package.raw_reader()?, &mut sha256)?;
-            let sha256 = sha256.finalize();
+            let sha256 = sha256.0.finalize();
 
             ensure!(
                 <[u8; 32]>::from(sha256) == expected_sha256_hash,
