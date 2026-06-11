@@ -10,7 +10,7 @@ repository = "https://github.com/M4SS-Code/cargo-goggles"
 
 [dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
-cargo-lock = "10"
+cargo-lock = "11"
 cargo_toml = "0.22"
 tar = "0.4.40"
 flate2 = "1"
