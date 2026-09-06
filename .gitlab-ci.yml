@@ -3,7 +3,7 @@ stages:
 
 rust:deny:
   stage: test
-  image: rust:1.96-alpine3.24
+  image: rust:1.98-alpine3.24
   before_script:
     - apk add cargo-deny
   script:
@@ -11,7 +11,7 @@ rust:deny:
 
 rust:fmt:
   stage: test
-  image: rust:1.96-alpine3.24
+  image: rust:1.98-alpine3.24
   before_script:
     - rustup component add rustfmt
   script:
@@ -19,7 +19,7 @@ rust:fmt:
 
 rust:clippy:
   stage: test
-  image: rust:1.96-alpine3.24
+  image: rust:1.98-alpine3.24
   before_script:
     - rustup component add clippy
   script:
@@ -27,6 +27,6 @@ rust:clippy:
 
 rust:test:
   stage: test
-  image: rust:1.96-alpine3.24
+  image: rust:1.98-alpine3.24
   script:
     - cargo test
