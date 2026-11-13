@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  RUST_VERSION: 1.99.1
+  RUST_VERSION: 1.100.0
 
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
@@ -16,7 +16,7 @@ jobs:
     # The job containers on these runners are privileged, so never run them
     # for code from a fork.
     if: forgejo.event_name != 'pull_request' || forgejo.event.pull_request.head.repo.full_name == forgejo.repository
-    name: rustfmt / 1.99.1
+    name: rustfmt / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -36,7 +36,7 @@ jobs:
 
   clippy:
     if: forgejo.event_name != 'pull_request' || forgejo.event.pull_request.head.repo.full_name == forgejo.repository
-    name: clippy / 1.99.1
+    name: clippy / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
@@ -56,7 +56,7 @@ jobs:
 
   test:
     if: forgejo.event_name != 'pull_request' || forgejo.event.pull_request.head.repo.full_name == forgejo.repository
-    name: test / 1.99.1
+    name: test / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:

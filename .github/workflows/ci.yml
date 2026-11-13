@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  RUST_VERSION: 1.99.1
+  RUST_VERSION: 1.100.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   fmt:
-    name: rustfmt / 1.99.1
+    name: rustfmt / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -35,7 +35,7 @@ jobs:
         run: cargo fmt -- --check
 
   clippy:
-    name: clippy / 1.99.1
+    name: clippy / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
@@ -54,7 +54,7 @@ jobs:
         run: cargo clippy --locked --all-features --all-targets -- -D warnings
 
   test:
-    name: test / 1.99.1
+    name: test / 1.100.0
     runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
